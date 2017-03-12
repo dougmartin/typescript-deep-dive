@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "es3",
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "jsx": "react",
+        "noImplicitAny": true,
+        "strictNullChecks": true,
+        "outDir": "./dist/",
+        "sourceMap": true
+    },
+    "filesGlob": [
+        "src/**/*.ts"
+    ]
+}

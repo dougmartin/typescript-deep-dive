@@ -20,20 +20,20 @@ interface ValidRepoFolder {
 type RepoFolder = InvalidRepoFolder | ValidRepoFolder
 
 // API
-interface APIIndex {
+export interface APIIndex {
   links: {
     self: string
     repos: string
   }
 }
-interface RepoIndex {
+export interface RepoIndex {
   repos: Repo[]
   links: {
     self: string
     parent: string
   }
 }
-interface Repo {
+export interface Repo {
   name: string
   slug: string
   links: {
@@ -42,28 +42,45 @@ interface Repo {
     parent: string
   }
 }
-interface Tree {
+export interface Tree {
   entries: TreeEntry[]
   links: {
     self: string
   }
 }
-interface BlobTreeLinks {
-  blob: string
-}
-interface TreeTreeLinks {
-  tree: string
-}
-type TreeLinks = BlobTreeLinks | TreeTreeLinks
-interface TreeEntry {
+
+export interface TreeEntryTree {
+  type: "tree"
   mode: string
-  type: string
   sha: string
   name: string
-  links: TreeLinks
+  links: {
+    tree: string
+  }
 }
-type ErrorStatusCode = number
-type APIResult = APIIndex | RepoIndex | Repo | Tree | Buffer | ErrorStatusCode
+export interface TreeEntryBlob {
+  type: "blob"
+  mode: string
+  sha: string
+  name: string
+  links: {
+    blob: string
+  }
+}
+export type TreeEntry = TreeEntryTree | TreeEntryBlob
+
+export type ErrorStatusCode = number
+export type APIResult = APIIndex | RepoIndex | Repo | Tree | Buffer | ErrorStatusCode
+
+export interface APIErrorResponse {
+  success: false
+  error: string
+}
+export interface APISuccessResponse {
+  success: true
+  result: APIResult
+}
+export type APIResponse = APIErrorResponse | APISuccessResponse
 
 class API {
   baseRepoPath: string
@@ -114,17 +131,29 @@ class API {
             callback(error)
           }
           else {
-            const lines = (output || "").split("\n").filter(line => line.length > 0)
+            const lines = (output || "").replace(/\r/g, "").split("\n").filter(line => line.length > 0)
             const entries = lines.map<TreeEntry>((line) => {
-              const [info, name] = line.replace(/\n|\r/g, "").split("\t")
+              const [info, name] = line.split("\t")
               const [mode, type, sha] = info.split(" ")
               const link = this.req.apiUrl(`/repos/${slug}/${type}/${sha}`)
-              return {
-                mode: mode,
-                type: type,
-                sha: sha,
-                name: name,
-                links: type === "blob" ? {blob: link} : {tree: link}
+
+              if (type === "blob") {
+                return {
+                  type: "blob",
+                  mode: mode,
+                  sha: sha,
+                  name: name,
+                  links: {blob: link}
+                }
+              }
+              else {
+                return {
+                  type: "tree",
+                  mode: mode,
+                  sha: sha,
+                  name: name,
+                  links: {tree: link}
+                }
               }
             })
 
@@ -201,20 +230,17 @@ class API {
 
 class Git {
   private binary:string
+  private spawnOptions:any
 
   constructor(private gitPath:string) {
     this.binary = "git"
-  }
-
-  spawn(args:Array<string>) {
-    console.log(`${this.gitPath}: ${this.binary} ${args.join(" ")}`)
-    return spawn(this.binary, args, {cwd: this.gitPath})
+    this.spawnOptions = {cwd: this.gitPath}
   }
 
   result(args:Array<string>, callback: (error:string|null, output?:string) => void) {
     const rawData = Array<string>()
     const rawDecoder = new StringDecoder("utf8")
-    const stream = this.spawn(args)
+    const stream = spawn(this.binary, args, this.spawnOptions)
 
     stream.stdout.on("data", (data:Buffer) => {
       rawData.push(rawDecoder.write(data))
@@ -232,9 +258,7 @@ class Git {
 
   rawResult(args:Array<string>, callback: (error:string|null, output?:Buffer) => void) {
     const rawData = Array<Buffer>()
-    const stream = this.spawn(args)
-
-    console.log(`${this.gitPath}: ${this.binary} ${args.join(" ")}`)
+    const stream = spawn(this.binary, args, this.spawnOptions)
 
     stream.stdout.on("data", (data:Buffer) => {
       rawData.push(data)
@@ -268,32 +292,29 @@ interface APIResponse extends express.Response {
 app.use((req:APIRequest, res:APIResponse, next:express.NextFunction) => {
   api = new API(req)
 
-  req.apiUrl = (endPoint:string, query?:any) => {
+  req.apiUrl = (endPoint:string) => {
     return url.format({
       protocol: req.protocol,
       hostname: req.hostname,
       port: port,
-      pathname: `/api${endPoint}`,
-      query: query
+      pathname: `/api${endPoint}`
     })
   }
 
   res.api = (error, result) => {
     res.setHeader("Content-Type", "application/json")
-    if (error) {
+    if (error || !result) {
       res.statusCode = typeof result === "number" ? result : 500
-      return res.json({success: false, error: error})
+      return res.json({success: false, error: error || "Undefined result"} as APIErrorResponse)
     }
-    return res.json({success: true, result: result})
+    return res.json({success: true, result: result} as APISuccessResponse)
   }
   next()
 })
 
 // ROUTES
 
-app.get("/", (req:express.Request, res:express.Response) => {
-  res.send("Hello world!")
-})
+app.use(express.static(path.join(__dirname, "../")))
 
 app.get("/api", (req:APIRequest, res:APIResponse) => {
   res.api(null, {

@@ -1,0 +1,78 @@
+<!DOCTYPE HTML>
+<html lang="en">
+ <head>
+   <title>Git Repo Browser</title>
+   <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: sans-serif;
+    }
+    #app-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+    }
+
+    .link {
+      color: #00f;
+      cursor: pointer;
+    }
+
+    .top-nav {
+      position: fixed;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 25px;
+      background-color: #00f;
+      color: #fff;
+    }
+    .top-nav__logo {
+      margin: 3px 5px;
+      cursor: pointer;
+    }
+
+    .workspace {
+      position: fixed;
+      top: 25px;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      overflow: auto;
+    }
+    .workspace__error {
+      background-color: #f00;
+      color: #fff;
+      padding: 5px;
+    }
+    .workspace__results {
+      margin: 10px;
+    }
+    .workspace__breadcrumbs {
+      margin: 10px 0;
+    }
+    .workspace__breadcrumbs-spacer {
+      margin-right: 5px;
+    }
+
+    .treelist__entry {
+      font-family: monospace;
+      cursor: pointer;
+    }
+    .treelist__icon {
+      margin-right: 5px;
+    }
+
+   </style>
+ </head>
+ <body>
+   <div id="app-container"></div>
+   <script src="node_modules/react/dist/react.js"></script>
+   <script src="node_modules/react-dom/dist/react-dom.js"></script>
+   <script src="node_modules/superagent/superagent.js"></script>
+   <script src="dist/client.js"></script>
+ </body>
+</html>
